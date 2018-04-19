@@ -1,8 +1,8 @@
 package redsync
 
 import (
-	"time"
 	"github.com/gomodule/redigo/redis"
+	"time"
 )
 
 // Redsync provides a simple method for creating distributed mutexes using multiple Redis connection pools.
