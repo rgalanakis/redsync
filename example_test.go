@@ -1,14 +1,14 @@
 package redsync_test
 
 import (
-	"github.com/rgalanakis/redsync/rstest"
-	"github.com/rgalanakis/redsync"
-	"github.com/rafaeljusto/redigomock"
-	"github.com/gomodule/redigo/redis"
 	"fmt"
+	"github.com/gomodule/redigo/redis"
+	"github.com/rafaeljusto/redigomock"
+	"github.com/rgalanakis/redsync"
+	"github.com/rgalanakis/redsync/rstest"
 )
 
-func expensiveOperation() { }
+func expensiveOperation() {}
 
 func ExampleNew() {
 	var conn redis.Conn
@@ -75,4 +75,3 @@ func ExampleMutex_WithLock() {
 	// Mutex3: called: false,	error: <nil>
 	// Result: mutex2 called
 }
-

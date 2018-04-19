@@ -1,9 +1,9 @@
 package redsync
 
 import (
+	"fmt"
 	"github.com/gomodule/redigo/redis"
 	"time"
-	"fmt"
 )
 
 // Dialer functions return an item with the redis.Conn interface, or an error.
