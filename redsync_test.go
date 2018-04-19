@@ -27,8 +27,7 @@ var _ = Describe("redsync", func() {
 		tr.Stop()
 	})
 
-	getPoolValues := func(pools []*redis.Pool, name string) []string {
-		var values []string
+	getPoolValues := func(pools []*redis.Pool, name string) (values []string) {
 		for _, pool := range pools {
 			conn := pool.Get()
 			value, err := redis.String(conn.Do("GET", name))
@@ -41,8 +40,7 @@ var _ = Describe("redsync", func() {
 		return values
 	}
 
-	getPoolExpiries := func(pools []*redis.Pool, name string) []int {
-		var expiries []int
+	getPoolExpiries := func(pools []*redis.Pool, name string) (expiries []int) {
 		for _, pool := range pools {
 			conn := pool.Get()
 			expiry, err := redis.Int(conn.Do("PTTL", name))
@@ -72,8 +70,7 @@ var _ = Describe("redsync", func() {
 		return n
 	}
 
-	newTestMutexes := func(pools []*redis.Pool, name string, n int) []*Mutex {
-		var mutexes []*Mutex
+	newTestMutexes := func(pools []*redis.Pool, name string, n int) (mutexes []*Mutex) {
 		rs := New(pools)
 		for i := 0; i < n; i++ {
 			mutexes = append(mutexes, rs.NewMutex(name, Blocking()))
@@ -96,15 +93,12 @@ var _ = Describe("redsync", func() {
 
 	Describe("Redsync", func() {
 
-		It("uses its pool to acquire a lock", func() {
+		It("can create a Mutex", func() {
 			pools := tr.Pools(8)
 			rs := New(pools)
 
 			mutex := rs.NewMutex("test-redsync", Blocking())
-			err := mutex.Lock()
-			if err != nil {
-
-			}
+			Expect(mutex.Lock()).To(Succeed())
 		})
 	})
 
@@ -165,6 +159,13 @@ var _ = Describe("redsync", func() {
 					Expect(mutex.Lock()).To(Equal(ErrFailed))
 				}
 			}
+		})
+
+		It("errors if all servers reply with an unexpected error", func() {
+			pools := rstest.MockPools(&rstest.MockConn{}, 4)
+			mutex := New(pools).NewMutex("test-errors", NonBlocking())
+			Expect(mutex.Lock()).To(Not(Succeed()))
+			Expect(mutex.Lock().Error()).To(ContainSubstring("not registered in redigomock library"))
 		})
 	})
 

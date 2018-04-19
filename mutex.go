@@ -46,12 +46,10 @@ func (m *Mutex) Lock() error {
 
 		start := time.Now()
 
-		n := 0
-		for _, pool := range m.pools {
-			ok := m.acquire(pool, value)
-			if ok {
-				n++
-			}
+		n, err := m.acquireAll(value)
+		if err != nil {
+			m.releaseAll(value)
+			return err
 		}
 
 		until := time.Now().Add(m.expiry - time.Now().Sub(start) - time.Duration(int64(float64(m.expiry)*m.factor)) + 2*time.Millisecond)
@@ -60,9 +58,7 @@ func (m *Mutex) Lock() error {
 			m.until = until
 			return nil
 		}
-		for _, pool := range m.pools {
-			m.release(pool, value)
-		}
+		m.releaseAll(value)
 	}
 
 	return ErrFailed
@@ -107,11 +103,31 @@ func (m *Mutex) genValue() (string, error) {
 	return base64.StdEncoding.EncodeToString(b), nil
 }
 
-func (m *Mutex) acquire(pool *redis.Pool, value string) bool {
+func (m *Mutex) acquireAll(value string) (int, error) {
+	n := 0
+	for _, pool := range m.pools {
+		ok, err := m.acquire(pool, value)
+		if ok {
+			n++
+		}
+		if err != nil {
+			return n, err
+		}
+	}
+	return n, nil
+}
+
+func (m *Mutex) acquire(pool *redis.Pool, value string) (bool, error) {
 	conn := pool.Get()
 	defer conn.Close()
 	reply, err := redis.String(conn.Do("SET", m.name, value, "NX", "PX", int(m.expiry/time.Millisecond)))
-	return err == nil && reply == "OK"
+	if reply == "OK" {
+		return true, nil
+	}
+	if err == redis.ErrNil {
+		return false, nil
+	}
+	return false, err
 }
 
 var deleteScript = redis.NewScript(1, `
@@ -121,6 +137,16 @@ var deleteScript = redis.NewScript(1, `
 		return 0
 	end
 `)
+
+func (m *Mutex) releaseAll(value string) int {
+	n := 0
+	for _, pool := range m.pools {
+		if m.release(pool, value) {
+			n++
+		}
+	}
+	return n
+}
 
 func (m *Mutex) release(pool *redis.Pool, value string) bool {
 	conn := pool.Get()

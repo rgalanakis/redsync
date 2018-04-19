@@ -5,6 +5,22 @@ import (
 	"time"
 )
 
+// Dialer functions return an item with the redis.Conn interface, or an error.
+type Dialer func() (redis.Conn, error)
+
+// TcpDialer connects to an address string, like "localhost:6379".
+func TcpDialer(addr string) Dialer {
+	return func() (redis.Conn, error) {
+		return redis.Dial("tcp", addr)
+	}
+}
+
+func UnixDialer(addr string) Dialer {
+	return func() (redis.Conn, error) {
+		return redis.Dial("unix", addr)
+	}
+}
+
 // Redsync provides a simple method for creating distributed mutexes using multiple Redis connection pools.
 type Redsync struct {
 	pools []*redis.Pool
