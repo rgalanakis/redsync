@@ -1,4 +1,4 @@
-package redsync
+package redsync_test
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"github.com/rgalanakis/redsync"
 )
 
 func TestLocker(t *testing.T) {
@@ -53,7 +54,7 @@ var _ = Describe("redsync", func() {
 		return expiries
 	}
 
-	clogPools := func(pools []*redis.Pool, mask int, mutex *Mutex) int {
+	clogPools := func(pools []*redis.Pool, mask int, mutex *redsync.Mutex) int {
 		n := 0
 		for i, pool := range pools {
 			if mask&(1<<uint(i)) == 0 {
@@ -61,7 +62,7 @@ var _ = Describe("redsync", func() {
 				continue
 			}
 			conn := pool.Get()
-			_, err := conn.Do("SET", mutex.name, "foobar")
+			_, err := conn.Do("SET", mutex.Name(), "foobar")
 			conn.Close()
 			if err != nil {
 				panic(err)
@@ -70,24 +71,25 @@ var _ = Describe("redsync", func() {
 		return n
 	}
 
-	newTestMutexes := func(pools []*redis.Pool, name string, n int) (mutexes []*Mutex) {
-		rs := New(pools)
+	newTestMutexes := func(pools []*redis.Pool, name string, n int) (mutexes []*redsync.Mutex) {
+		rs := redsync.New(pools)
 		for i := 0; i < n; i++ {
-			mutexes = append(mutexes, rs.NewMutex(name, Blocking()))
+			mutexes = append(mutexes, rs.NewMutex(name, redsync.Blocking()))
 		}
 		return mutexes
 	}
 
-	assertAcquired := func(pools []*redis.Pool, mutex *Mutex) {
+	assertAcquired := func(pools []*redis.Pool, mutex *redsync.Mutex) {
 		n := 0
-		values := getPoolValues(pools, mutex.name)
+		values := getPoolValues(pools, mutex.Name())
 		for _, value := range values {
-			if value == mutex.value {
+			if value == mutex.Value() {
 				n++
 			}
 		}
-		if n < mutex.quorum {
-			Fail(fmt.Sprintf("Expected n >= %d, got %d", mutex.quorum, n))
+		quorum := redsync.Quorum(len(pools))
+		if n < quorum {
+			Fail(fmt.Sprintf("Expected n >= %d, got %d", quorum, n))
 		}
 	}
 
@@ -95,9 +97,9 @@ var _ = Describe("redsync", func() {
 
 		It("can create a Mutex", func() {
 			pools := tr.Pools(8)
-			rs := New(pools)
+			rs := redsync.New(pools)
 
-			mutex := rs.NewMutex("test-redsync", Blocking())
+			mutex := rs.NewMutex("test-redsync", redsync.Blocking())
 			Expect(mutex.Lock()).To(Succeed())
 		})
 	})
@@ -108,7 +110,7 @@ var _ = Describe("redsync", func() {
 			mutexes := newTestMutexes(pools, "test-mutex", 8)
 			orderCh := make(chan int)
 			for i, mutex := range mutexes {
-				go func(i int, mutex *Mutex) {
+				go func(i int, mutex *redsync.Mutex) {
 					Expect(mutex.Lock()).To(Succeed())
 					defer mutex.Unlock()
 					assertAcquired(pools, mutex)
@@ -131,10 +133,10 @@ var _ = Describe("redsync", func() {
 
 			time.Sleep(1 * time.Second)
 
-			expiries := getPoolExpiries(pools, mutex.name)
+			expiries := getPoolExpiries(pools, mutex.Name())
 			Expect(mutex.Extend()).To(BeTrue())
 
-			expiries2 := getPoolExpiries(pools, mutex.name)
+			expiries2 := getPoolExpiries(pools, mutex.Name())
 
 			for i, expiry := range expiries {
 				if expiry >= expiries2[i] {
@@ -146,9 +148,9 @@ var _ = Describe("redsync", func() {
 		It("requires a quorum to get the lock", func() {
 			pools := tr.Pools(4)
 			for mask := 0; mask < 1<<uint(len(pools)); mask++ {
-				mutexes := newTestMutexes(pools, "test-mutex-partial-"+strconv.Itoa(mask), 1)
-				mutex := mutexes[0]
-				mutex.tries = 1
+				opts := redsync.Blocking()
+				opts.Tries = 1
+				mutex := redsync.New(pools).NewMutex("test-mutex-partial-"+strconv.Itoa(mask), opts)
 
 				n := clogPools(pools, mask, mutex)
 
@@ -156,14 +158,14 @@ var _ = Describe("redsync", func() {
 					Expect(mutex.Lock()).To(Succeed())
 					assertAcquired(pools, mutex)
 				} else {
-					Expect(mutex.Lock()).To(Equal(ErrFailed))
+					Expect(mutex.Lock()).To(Equal(redsync.ErrFailed))
 				}
 			}
 		})
 
 		It("errors if all servers reply with an unexpected error", func() {
 			pools := rstest.MockPools(&rstest.MockConn{}, 4)
-			mutex := New(pools).NewMutex("test-errors", NonBlocking())
+			mutex := redsync.New(pools).NewMutex("test-errors", redsync.NonBlocking())
 			Expect(mutex.Lock()).To(Not(Succeed()))
 			Expect(mutex.Lock().Error()).To(ContainSubstring("not registered in redigomock library"))
 		})

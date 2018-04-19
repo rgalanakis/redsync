@@ -3,12 +3,13 @@ package rstest
 import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/rafaeljusto/redigomock"
+	"github.com/rgalanakis/redsync"
 )
 
 type MockConn = redigomock.Conn
 
 // MockDialer returns mock as its connection.
-func MockDialer(mock *MockConn) func() (redis.Conn, error) {
+func MockDialer(mock *MockConn) redsync.Dialer {
 	return func() (redis.Conn, error) {
 		return mock, nil
 	}

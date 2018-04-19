@@ -72,7 +72,11 @@ func (r *Redsync) NewMutex(name string, opts MutexOpts) *Mutex {
 		tries:  opts.Tries,
 		delay:  opts.Delay,
 		factor: opts.Factor,
-		quorum: len(r.pools)/2 + 1,
+		quorum: Quorum(len(r.pools)),
 		pools:  r.pools,
 	}
+}
+
+func Quorum(n int) int {
+	return n/2 + 1
 }

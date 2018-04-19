@@ -4,6 +4,7 @@ import (
 	"github.com/stvp/tempredis"
 	"time"
 	"github.com/gomodule/redigo/redis"
+	"github.com/rgalanakis/redsync"
 )
 
 type Tempredis struct {
@@ -31,9 +32,7 @@ func (ts *Tempredis) Pools(n int) []*redis.Pool {
 			pools = append(pools, &redis.Pool{
 				MaxIdle:     3,
 				IdleTimeout: 240 * time.Second,
-				Dial: func() (redis.Conn, error) {
-					return redis.Dial("unix", server.Socket())
-				},
+				Dial: redsync.UnixDialer(server.Socket()),
 				TestOnBorrow: func(c redis.Conn, t time.Time) error {
 					_, err := c.Do("PING")
 					return err

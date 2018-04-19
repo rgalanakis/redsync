@@ -169,3 +169,11 @@ func (m *Mutex) touch(pool *redis.Pool, value string, expiry int) bool {
 	status, err := redis.String(touchScript.Do(conn, m.name, value, expiry))
 	return err == nil && status != "ERR"
 }
+
+func (m *Mutex) Name() string {
+	return m.name
+}
+
+func (m *Mutex) Value() string {
+	return m.value
+}
