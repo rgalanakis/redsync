@@ -3,14 +3,16 @@ package redsync
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"sync"
 	"time"
 
 	"fmt"
 	"github.com/gomodule/redigo/redis"
 )
 
-// A Mutex is a distributed mutual exclusion lock.
+// Mutex is a distributed mutual exclusion lock.
+// Note that a redsync.Mutex is not goroutine-safe.
+// Each goroutine should create its own Mutex instance for locking.
+// Note that Redsync instances are threadsafe, so they can be reused across goroutines.
 type Mutex struct {
 	name   string
 	expiry time.Duration
@@ -25,14 +27,13 @@ type Mutex struct {
 	value string
 	until time.Time
 
-	nodem sync.Mutex
-
 	pools []*redis.Pool
 }
 
 // String returns a string representation of the mutex.
 func (m *Mutex) String() string {
-	return fmt.Sprintf("redsync.Mutex{name: %s, tries: %d, expiry: %s, poolcnt: %d}", m.name, m.tries, m.expiry.String(), len(m.pools))
+	return fmt.Sprintf("redsync.Mutex{name: %s, tries: %d, expiry: %s, poolcnt: %d}",
+		m.name, m.tries, m.expiry.String(), len(m.pools))
 }
 
 // Name returns the mutex name.
@@ -53,9 +54,6 @@ func (m *Mutex) Value() string {
 // If Lock returns any other error, the lock may not be acquire-able do to an unexpected error,
 // like if redis is not running.
 func (m *Mutex) Lock() error {
-	m.nodem.Lock()
-	defer m.nodem.Unlock()
-
 	value, err := m.genValue()
 	if err != nil {
 		return err
@@ -88,9 +86,6 @@ func (m *Mutex) Lock() error {
 
 // Unlock unlocks m and returns the status of unlock.
 func (m *Mutex) Unlock() bool {
-	m.nodem.Lock()
-	defer m.nodem.Unlock()
-
 	released := m.releaseAll(m.value)
 	return released >= m.quorum
 }
