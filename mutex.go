@@ -177,3 +177,7 @@ func (m *Mutex) Name() string {
 func (m *Mutex) Value() string {
 	return m.value
 }
+
+//func (m *Mutex) Expiry() time.Duration {
+//	return m.expiry
+//}

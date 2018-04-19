@@ -164,10 +164,23 @@ var _ = Describe("redsync", func() {
 		})
 
 		It("errors if all servers reply with an unexpected error", func() {
-			pools := rstest.MockPools(&rstest.MockConn{}, 4)
+			pools := rstest.MockPools(rstest.NewMockConn(), 4)
 			mutex := redsync.New(pools).NewMutex("test-errors", redsync.NonBlocking())
 			Expect(mutex.Lock()).To(Not(Succeed()))
 			Expect(mutex.Lock().Error()).To(ContainSubstring("not registered in redigomock library"))
+		})
+
+		It("can use rstest to set up lock mocks", func() {
+			name := "test-lockmock"
+			conn := rstest.NewMockConn()
+			rstest.AddLockExpects(conn, name, "OK", nil)
+
+			pools := rstest.MockPools(conn, 1)
+			mutex1 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
+			Expect(mutex1.Lock()).To(Succeed())
+
+			mutex2 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
+			Expect(mutex2.Lock()).To(Equal(redsync.ErrFailed))
 		})
 	})
 
