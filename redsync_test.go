@@ -28,7 +28,7 @@ func TestRedsync(t *testing.T) {
 	pools := newMockPools(8)
 	rs := New(pools)
 
-	mutex := rs.NewMutex("test-redsync")
+	mutex := rs.NewMutex("test-redsync", Blocking())
 	err := mutex.Lock()
 	if err != nil {
 

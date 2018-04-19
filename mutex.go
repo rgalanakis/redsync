@@ -26,7 +26,7 @@ type Mutex struct {
 
 	nodem sync.Mutex
 
-	pools []Pool
+	pools []*redis.Pool
 }
 
 // Lock locks m. In case it returns an error on failure, you may retry to acquire the lock by calling this method again.
@@ -107,7 +107,7 @@ func (m *Mutex) genValue() (string, error) {
 	return base64.StdEncoding.EncodeToString(b), nil
 }
 
-func (m *Mutex) acquire(pool Pool, value string) bool {
+func (m *Mutex) acquire(pool *redis.Pool, value string) bool {
 	conn := pool.Get()
 	defer conn.Close()
 	reply, err := redis.String(conn.Do("SET", m.name, value, "NX", "PX", int(m.expiry/time.Millisecond)))
@@ -122,7 +122,7 @@ var deleteScript = redis.NewScript(1, `
 	end
 `)
 
-func (m *Mutex) release(pool Pool, value string) bool {
+func (m *Mutex) release(pool *redis.Pool, value string) bool {
 	conn := pool.Get()
 	defer conn.Close()
 	status, err := deleteScript.Do(conn, m.name, value)
@@ -137,7 +137,7 @@ var touchScript = redis.NewScript(1, `
 	end
 `)
 
-func (m *Mutex) touch(pool Pool, value string, expiry int) bool {
+func (m *Mutex) touch(pool *redis.Pool, value string, expiry int) bool {
 	conn := pool.Get()
 	defer conn.Close()
 	status, err := redis.String(touchScript.Do(conn, m.name, value, expiry))
