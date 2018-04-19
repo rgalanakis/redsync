@@ -79,6 +79,19 @@ func (m *Mutex) Unlock() bool {
 	return n >= m.quorum
 }
 
+func (m *Mutex) WithLock(f func()) (bool, error) {
+	err := m.Lock()
+	if err == ErrFailed {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	defer m.Unlock()
+	f()
+	return true, nil
+}
+
 // Extend resets the mutex's expiry and returns the status of expiry extension.
 func (m *Mutex) Extend() bool {
 	m.nodem.Lock()
@@ -177,7 +190,3 @@ func (m *Mutex) Name() string {
 func (m *Mutex) Value() string {
 	return m.value
 }
-
-//func (m *Mutex) Expiry() time.Duration {
-//	return m.expiry
-//}

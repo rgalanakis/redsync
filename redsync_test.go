@@ -1,15 +1,16 @@
 package redsync_test
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gomodule/redigo/redis"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/rgalanakis/redsync"
 	"github.com/rgalanakis/redsync/rstest"
 	"strconv"
 	"testing"
 	"time"
-	"github.com/rgalanakis/redsync"
 )
 
 func TestLocker(t *testing.T) {
@@ -181,6 +182,47 @@ var _ = Describe("redsync", func() {
 
 			mutex2 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
 			Expect(mutex2.Lock()).To(Equal(redsync.ErrFailed))
+		})
+
+		It("will conditionally execute a function on lock acquisition", func() {
+			name := "test-withlock"
+			conn := rstest.NewMockConn()
+			rstest.AddLockExpects(conn, name, nil, "OK", nil).ExpectError(errors.New("failed"))
+			pools := rstest.MockPools(conn, 1)
+
+			mutex1 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
+			mutex2 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
+			mutex3 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
+			mutex4 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
+			var res1, res2, res3, res4 bool
+
+			locked1, err1 := mutex1.WithLock(func() {
+				res1 = true
+			})
+			locked2, err2 := mutex2.WithLock(func() {
+				res2 = true
+			})
+			locked3, err3 := mutex3.WithLock(func() {
+				res3 = true
+			})
+			locked4, err4 := mutex4.WithLock(func() {
+				res4 = true
+			})
+			Expect(err1).To(Not(HaveOccurred()))
+			Expect(locked1).To(BeFalse())
+			Expect(res1).To(BeFalse())
+
+			Expect(err2).To(Not(HaveOccurred()))
+			Expect(locked2).To(BeTrue())
+			Expect(res2).To(BeTrue())
+
+			Expect(err3).To(Not(HaveOccurred()))
+			Expect(locked3).To(BeFalse())
+			Expect(res3).To(BeFalse())
+
+			Expect(err4).To(HaveOccurred())
+			Expect(locked4).To(BeFalse())
+			Expect(res4).To(BeFalse())
 		})
 	})
 

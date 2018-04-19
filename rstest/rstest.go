@@ -10,11 +10,12 @@ func NewMockConn() *redigomock.Conn {
 	return redigomock.NewConn()
 }
 
-func AddLockExpects(conn *redigomock.Conn, name string, expects ...interface{}) {
+func AddLockExpects(conn *redigomock.Conn, name string, expects ...interface{}) *redigomock.Cmd {
 	cmd := conn.Command("SET", name, redigomock.NewAnyData(), "NX", "PX", redigomock.NewAnyInt())
 	for _, e := range expects {
 		cmd = cmd.Expect(e)
 	}
+	return cmd
 }
 
 // MockDialer returns mock as its connection.
