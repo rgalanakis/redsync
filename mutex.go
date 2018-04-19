@@ -113,16 +113,6 @@ func (m *Mutex) WithLock(f func()) (bool, error) {
 	return true, nil
 }
 
-// Extend resets the mutex's expiry and returns the status of expiry extension
-// (true if extended, false if not).
-func (m *Mutex) Extend() bool {
-	m.nodem.Lock()
-	defer m.nodem.Unlock()
-
-	touched := m.touchAll(m.value)
-	return touched >= m.quorum
-}
-
 func (m *Mutex) genValue() (string, error) {
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
@@ -183,30 +173,4 @@ func (m *Mutex) release(pool *redis.Pool, value string) bool {
 	defer conn.Close()
 	status, err := deleteScript.Do(conn, m.name, value)
 	return err == nil && status != 0
-}
-
-var touchScript = redis.NewScript(1, `
-	if redis.call("GET", KEYS[1]) == ARGV[1] then
-		return redis.call("SET", KEYS[1], ARGV[1], "XX", "PX", ARGV[2])
-	else
-		return "ERR"
-	end
-`)
-
-func (m *Mutex) touchAll(value string) int {
-	n := 0
-	for _, pool := range m.pools {
-		ok := m.touch(pool, m.value, int(m.expiry/time.Millisecond))
-		if ok {
-			n++
-		}
-	}
-	return n
-}
-
-func (m *Mutex) touch(pool *redis.Pool, value string, expiry int) bool {
-	conn := pool.Get()
-	defer conn.Close()
-	status, err := redis.String(touchScript.Do(conn, m.name, value, expiry))
-	return err == nil && status != "ERR"
 }

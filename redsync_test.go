@@ -10,7 +10,6 @@ import (
 	"github.com/rgalanakis/redsync/rstest"
 	"strconv"
 	"testing"
-	"time"
 )
 
 func TestLocker(t *testing.T) {
@@ -40,19 +39,6 @@ var _ = Describe("redsync", func() {
 			values = append(values, value)
 		}
 		return values
-	}
-
-	getPoolExpiries := func(pools []*redis.Pool, name string) (expiries []int) {
-		for _, pool := range pools {
-			conn := pool.Get()
-			expiry, err := redis.Int(conn.Do("PTTL", name))
-			conn.Close()
-			if err != nil && err != redis.ErrNil {
-				panic(err)
-			}
-			expiries = append(expiries, expiry)
-		}
-		return expiries
 	}
 
 	clogPools := func(pools []*redis.Pool, mask int, mutex *redsync.Mutex) int {
@@ -121,28 +107,6 @@ var _ = Describe("redsync", func() {
 			}
 			for range mutexes {
 				<-orderCh
-			}
-		})
-
-		It("can extend a lock", func() {
-			pools := tr.Pools(8)
-			mutexes := newTestMutexes(pools, "test-mutex-extend", 1)
-			mutex := mutexes[0]
-
-			Expect(mutex.Lock()).To(Succeed())
-			defer mutex.Unlock()
-
-			time.Sleep(1 * time.Second)
-
-			expiries := getPoolExpiries(pools, mutex.Name())
-			Expect(mutex.Extend()).To(BeTrue())
-
-			expiries2 := getPoolExpiries(pools, mutex.Name())
-
-			for i, expiry := range expiries {
-				if expiry >= expiries2[i] {
-					Fail(fmt.Sprintf("Expected expiries[%d] > expiry, got %d %d", i, expiries2[i], expiry))
-				}
 			}
 		})
 
