@@ -7,27 +7,28 @@ import (
 	"github.com/rgalanakis/redsync"
 )
 
-type Tempredis struct {
-	servers []*tempredis.Server
-}
+// Servers is a slice of tempredis reservers.
+// Create a Servers slice of the length equal to the number of servers,
+// then use Start() to fill it with servers. Stop() stops the servers.
+// Pool(n) returns a slice of redis.Pool instances, one for each server,
+// up to n.
+type Servers []*tempredis.Server
 
-func NewTempredis(cnt int) *Tempredis {
-	return &Tempredis{servers: make([]*tempredis.Server, cnt)}
-}
-
-func (ts *Tempredis) Start() {
-	for i := 0; i < len(ts.servers); i++ {
+// Start starts the tempredis servers and fills in the empty slice.
+func (ts Servers) Start() {
+	for i := 0; i < len(ts); i++ {
 		server, err := tempredis.Start(tempredis.Config{})
 		if err != nil {
 			panic(err)
 		}
-		ts.servers[i] = server
+		ts[i] = server
 	}
 }
 
-func (ts *Tempredis) Pools(n int) []*redis.Pool {
+// Pools returns a slice of redis.Pool instances, one for each server, up to n.
+func (ts Servers) Pools(n int) []*redis.Pool {
 	var pools []*redis.Pool
-	for _, server := range ts.servers {
+	for _, server := range ts {
 		func(server *tempredis.Server) {
 			pools = append(pools, &redis.Pool{
 				MaxIdle:     3,
@@ -46,8 +47,9 @@ func (ts *Tempredis) Pools(n int) []*redis.Pool {
 	return pools
 }
 
-func (ts *Tempredis) Stop() {
-	for _, server := range ts.servers {
+// Stop stops the testredis servers.
+func (ts Servers) Stop() {
+	for _, server := range ts {
 		server.Term()
 	}
 }

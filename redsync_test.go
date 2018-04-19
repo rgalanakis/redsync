@@ -6,6 +6,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/rafaeljusto/redigomock"
 	"github.com/rgalanakis/redsync"
 	"github.com/rgalanakis/redsync/rstest"
 	"strconv"
@@ -18,7 +19,7 @@ func TestLocker(t *testing.T) {
 }
 
 var _ = Describe("redsync", func() {
-	tr := rstest.NewTempredis(8)
+	tr := make(rstest.Servers, 8)
 
 	BeforeSuite(func() {
 		tr.Start()
@@ -129,7 +130,7 @@ var _ = Describe("redsync", func() {
 		})
 
 		It("errors if all servers reply with an unexpected error", func() {
-			pools := rstest.PoolsForConn(rstest.NewMockConn(), 4)
+			pools := rstest.PoolsForConn(redigomock.NewConn(), 4)
 			mutex := redsync.New(pools).NewMutex("test-errors", redsync.NonBlocking())
 			Expect(mutex.Lock()).To(Not(Succeed()))
 			Expect(mutex.Lock().Error()).To(ContainSubstring("not registered in redigomock library"))
@@ -137,7 +138,7 @@ var _ = Describe("redsync", func() {
 
 		It("can use rstest to set up lock mocks", func() {
 			name := "test-lockmock"
-			conn := rstest.NewMockConn()
+			conn := redigomock.NewConn()
 			rstest.AddLockExpects(conn, name, "OK", nil)
 
 			pools := rstest.PoolsForConn(conn, 1)
@@ -150,7 +151,7 @@ var _ = Describe("redsync", func() {
 
 		It("will conditionally execute a function on lock acquisition", func() {
 			name := "test-withlock"
-			conn := rstest.NewMockConn()
+			conn := redigomock.NewConn()
 			rstest.AddLockExpects(conn, name, nil, "OK", nil).ExpectError(errors.New("failed"))
 			pools := rstest.PoolsForConn(conn, 1)
 
