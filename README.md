@@ -16,13 +16,14 @@ A reference library (by [antirez](https://github.com/antirez)) for Ruby is avail
 
 Install Redsync using the go get command:
 
-    $ go get gopkg.in/redsync.v1
+    $ go get github.com/rgalanakis/redsync
 
-The only dependencies are the Go distribution and [Redigo](https://github.com/gomodule/redigo).
+Dependencies are the Go distribution and [Redigo](https://github.com/gomodule/redigo).
+It also [Redigomock](https://github.com/rafaeljusto/redigomock) for testing.
 
 ## Documentation
 
-- [Reference](https://godoc.org/gopkg.in/redsync.v1)
+- [Reference](http://godoc.org/github.com/rgalanakis/redsync)
 
 ## Contributing
 
