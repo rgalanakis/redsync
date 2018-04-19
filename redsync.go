@@ -3,9 +3,11 @@ package redsync
 import (
 	"github.com/gomodule/redigo/redis"
 	"time"
+	"fmt"
 )
 
 // Dialer functions return an item with the redis.Conn interface, or an error.
+// It fulfills the interface for the Dial argument to a redis.Pool.
 type Dialer func() (redis.Conn, error)
 
 // TcpDialer connects to an address string, like "localhost:6379".
@@ -15,13 +17,17 @@ func TcpDialer(addr string) Dialer {
 	}
 }
 
+// UnixDialer connects to an address string, like "/var/folders/6j/xyz/T/abc/redis.sock".
 func UnixDialer(addr string) Dialer {
 	return func() (redis.Conn, error) {
+		fmt.Printf(addr)
 		return redis.Dial("unix", addr)
 	}
 }
 
-// Redsync provides a simple method for creating distributed mutexes using multiple Redis connection pools.
+// Redsync is a factory for redsync.Mutex.
+// It wraps a number of redis.Pool instances, each of which can have multiple connections.
+// Use NewMutex to create a mutex.
 type Redsync struct {
 	pools []*redis.Pool
 }
@@ -33,6 +39,9 @@ func New(pools []*redis.Pool) *Redsync {
 	}
 }
 
+// MutexOpts are the options for mutex construction.
+// In general, calls should use redsync.Blocking() or redsync.NonBlocking()
+// and customize the result, but they can also create a MutexOpts themselves.
 type MutexOpts struct {
 	// Expiry is the amount of time before the lock expires.
 	// Useful to make sure the lock is expired even if the lock is never released,
@@ -46,6 +55,9 @@ type MutexOpts struct {
 	Factor float64
 }
 
+// Blocking returns the default MutexOpts for a blocking mutex.
+// A blocking mutex will not return from Lock until the lock is acquired,
+// or Delay has elapsed (500ms by default).
 func Blocking() MutexOpts {
 	return MutexOpts{
 		Expiry: 8 * time.Second,
@@ -55,6 +67,9 @@ func Blocking() MutexOpts {
 	}
 }
 
+// NonBlocking returns the default MutexOpts for a non-blocking mutex.
+// A non-blocking mutex gives up the first time if it cannot acquire a mutex,
+// rather than retrying and spinning.
 func NonBlocking() MutexOpts {
 	return MutexOpts{
 		Expiry: 8 * time.Second,
@@ -64,7 +79,7 @@ func NonBlocking() MutexOpts {
 	}
 }
 
-// NewMutex returns a new distributed mutex with given Name.
+// NewMutex returns a new distributed mutex with given name and options.
 func (r *Redsync) NewMutex(name string, opts MutexOpts) *Mutex {
 	return &Mutex{
 		name:   name,
@@ -77,6 +92,7 @@ func (r *Redsync) NewMutex(name string, opts MutexOpts) *Mutex {
 	}
 }
 
+// Quorum returns the number of servers that must agree in order to acquire a lock (n/2 + 1).
 func Quorum(n int) int {
 	return n/2 + 1
 }

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"fmt"
 	"github.com/gomodule/redigo/redis"
 )
 
@@ -29,7 +30,28 @@ type Mutex struct {
 	pools []*redis.Pool
 }
 
-// Lock locks m. In case it returns an error on failure, you may retry to acquire the lock by calling this method again.
+// String returns a string representation of the mutex.
+func (m *Mutex) String() string {
+	return fmt.Sprintf("redsync.Mutex{name: %s, tries: %d, expiry: %s, poolcnt: %d}", m.name, m.tries, m.expiry.String(), len(m.pools))
+}
+
+// Name returns the mutex name.
+func (m *Mutex) Name() string {
+	return m.name
+}
+
+// Value returns the mutex value.
+func (m *Mutex) Value() string {
+	return m.value
+}
+
+// Lock acquires a lock on the mutex with the receiver's Name.
+// If Lock returns nil, the lock is acquired. Callers should make sure Unlock is called,
+// usually via defer m.Unlock().
+// If Lock returns ErrFailed, the lock could not be acquired because it was held by another mutex.
+// Callers may wish to call Lock() again to retry.
+// If Lock returns any other error, the lock may not be acquire-able do to an unexpected error,
+// like if redis is not running.
 func (m *Mutex) Lock() error {
 	m.nodem.Lock()
 	defer m.nodem.Unlock()
@@ -46,14 +68,14 @@ func (m *Mutex) Lock() error {
 
 		start := time.Now()
 
-		n, err := m.acquireAll(value)
+		acquired, err := m.acquireAll(value)
 		if err != nil {
 			m.releaseAll(value)
 			return err
 		}
 
 		until := time.Now().Add(m.expiry - time.Now().Sub(start) - time.Duration(int64(float64(m.expiry)*m.factor)) + 2*time.Millisecond)
-		if n >= m.quorum && time.Now().Before(until) {
+		if acquired >= m.quorum && time.Now().Before(until) {
 			m.value = value
 			m.until = until
 			return nil
@@ -69,16 +91,15 @@ func (m *Mutex) Unlock() bool {
 	m.nodem.Lock()
 	defer m.nodem.Unlock()
 
-	n := 0
-	for _, pool := range m.pools {
-		ok := m.release(pool, m.value)
-		if ok {
-			n++
-		}
-	}
-	return n >= m.quorum
+	released := m.releaseAll(m.value)
+	return released >= m.quorum
 }
 
+// WithLock invokes f if the lock was successfully invoked. See Lock for more info.
+// The boolean return value is true if the lock was acquired and f was invoked,
+// false if not.
+// The error is only non-nil if an unexpected error occurred.
+// In other words, if Lock() returns ErrFailed, WithLock returns an error of nil.
 func (m *Mutex) WithLock(f func()) (bool, error) {
 	err := m.Lock()
 	if err == ErrFailed {
@@ -92,19 +113,14 @@ func (m *Mutex) WithLock(f func()) (bool, error) {
 	return true, nil
 }
 
-// Extend resets the mutex's expiry and returns the status of expiry extension.
+// Extend resets the mutex's expiry and returns the status of expiry extension
+// (true if extended, false if not).
 func (m *Mutex) Extend() bool {
 	m.nodem.Lock()
 	defer m.nodem.Unlock()
 
-	n := 0
-	for _, pool := range m.pools {
-		ok := m.touch(pool, m.value, int(m.expiry/time.Millisecond))
-		if ok {
-			n++
-		}
-	}
-	return n >= m.quorum
+	touched := m.touchAll(m.value)
+	return touched >= m.quorum
 }
 
 func (m *Mutex) genValue() (string, error) {
@@ -134,6 +150,7 @@ func (m *Mutex) acquire(pool *redis.Pool, value string) (bool, error) {
 	conn := pool.Get()
 	defer conn.Close()
 	reply, err := redis.String(conn.Do("SET", m.name, value, "NX", "PX", int(m.expiry/time.Millisecond)))
+	//fmt.Println("acquire", reply, "err", err)
 	if reply == "OK" {
 		return true, nil
 	}
@@ -142,14 +159,6 @@ func (m *Mutex) acquire(pool *redis.Pool, value string) (bool, error) {
 	}
 	return false, err
 }
-
-var deleteScript = redis.NewScript(1, `
-	if redis.call("GET", KEYS[1]) == ARGV[1] then
-		return redis.call("DEL", KEYS[1])
-	else
-		return 0
-	end
-`)
 
 func (m *Mutex) releaseAll(value string) int {
 	n := 0
@@ -160,6 +169,14 @@ func (m *Mutex) releaseAll(value string) int {
 	}
 	return n
 }
+
+var deleteScript = redis.NewScript(1, `
+	if redis.call("GET", KEYS[1]) == ARGV[1] then
+		return redis.call("DEL", KEYS[1])
+	else
+		return 0
+	end
+`)
 
 func (m *Mutex) release(pool *redis.Pool, value string) bool {
 	conn := pool.Get()
@@ -176,17 +193,20 @@ var touchScript = redis.NewScript(1, `
 	end
 `)
 
+func (m *Mutex) touchAll(value string) int {
+	n := 0
+	for _, pool := range m.pools {
+		ok := m.touch(pool, m.value, int(m.expiry/time.Millisecond))
+		if ok {
+			n++
+		}
+	}
+	return n
+}
+
 func (m *Mutex) touch(pool *redis.Pool, value string, expiry int) bool {
 	conn := pool.Get()
 	defer conn.Close()
 	status, err := redis.String(touchScript.Do(conn, m.name, value, expiry))
 	return err == nil && status != "ERR"
-}
-
-func (m *Mutex) Name() string {
-	return m.name
-}
-
-func (m *Mutex) Value() string {
-	return m.value
 }

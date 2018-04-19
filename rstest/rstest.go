@@ -18,16 +18,16 @@ func AddLockExpects(conn *redigomock.Conn, name string, expects ...interface{}) 
 	return cmd
 }
 
-// MockDialer returns mock as its connection.
-func MockDialer(mock *redigomock.Conn) redsync.Dialer {
+// ConnDialer returns fake as its connection.
+func ConnDialer(fake redis.Conn) redsync.Dialer {
 	return func() (redis.Conn, error) {
-		return mock, nil
+		return fake, nil
 	}
 }
 
-func MockPools(conn *redigomock.Conn, n int) (pools []*redis.Pool) {
+func PoolsForConn(conn redis.Conn, n int) (pools []*redis.Pool) {
 	for i := 0; i < n; i++ {
-		pools = append(pools, &redis.Pool{Dial: MockDialer(conn)})
+		pools = append(pools, &redis.Pool{Dial: ConnDialer(conn)})
 	}
 	return pools
 }

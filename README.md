@@ -21,6 +21,13 @@ Install Redsync using the go get command:
 Dependencies are the Go distribution and [Redigo](https://github.com/gomodule/redigo).
 It also [Redigomock](https://github.com/rafaeljusto/redigomock) for testing.
 
+## Examples
+
+Taking a distributed lock:
+```go
+redsync.
+```
+
 ## Documentation
 
 - [Reference](http://godoc.org/github.com/rgalanakis/redsync)
