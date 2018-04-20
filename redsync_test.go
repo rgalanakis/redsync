@@ -191,4 +191,11 @@ var _ = Describe("redsync", func() {
 		})
 	})
 
+	Describe("TCPDialier", func() {
+		It("connects to a host", func() {
+			_, err := redsync.TcpDialer("127.0.0.1:6379")()
+			Expect(err).To(MatchError("dial tcp 127.0.0.1:6379: connect: connection refused"))
+		})
+	})
+
 })
