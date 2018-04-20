@@ -29,24 +29,3 @@ func ExampleAddLockExpects() {
 	// uh-oh
 
 }
-
-func ExampleServers() {
-	tr := make(rstest.Servers, 2)
-	fmt.Println("Created", len(tr), "temp redis servers")
-	fmt.Println("Servers are nil?", tr[0] == nil)
-	tr.Start()
-	fmt.Println("Started servers")
-	fmt.Println("Servers are nil?", tr[0] == nil)
-
-	pools := tr.Pools(2)
-	fmt.Println("Created a slice of", len(pools), "[]*redis.Pool, each to a different server")
-	tr.Stop()
-	fmt.Println("Servers terminated")
-	// Output:
-	// Created 2 temp redis servers
-	// Servers are nil? true
-	// Started servers
-	// Servers are nil? false
-	// Created a slice of 2 []*redis.Pool, each to a different server
-	// Servers terminated
-}
