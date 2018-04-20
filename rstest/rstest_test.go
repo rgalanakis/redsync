@@ -29,8 +29,8 @@ var _ = Describe("redsync/rstest", func() {
 			Expect(tr[0].Term()).To(Succeed())
 			// Now stop all, and then stop the second, and show it errors
 			tr.Stop()
-			Expect(tr[0].Term()).To(MatchError("wait: no child processes"))
-			Expect(tr[1].Term()).To(MatchError("wait: no child processes"))
+			Expect(tr[0].Term()).To(MatchError(ContainSubstring("no child processes")))
+			Expect(tr[1].Term()).To(MatchError(ContainSubstring("no child processes")))
 		})
 	})
 })
