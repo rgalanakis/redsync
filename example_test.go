@@ -14,8 +14,7 @@ func ExampleNew() {
 	var conn redis.Conn
 	conn = redigomock.NewConn()
 	pool := &redis.Pool{Dial: rstest.ConnDialer(conn)}
-	pools := []*redis.Pool{pool}
-	mutex := redsync.New(pools).NewMutex("example-new", redsync.NonBlocking())
+	mutex := redsync.New(pool).NewMutex("example-new", redsync.NonBlocking())
 	fmt.Println(mutex)
 	// Output:
 	// redsync.Mutex{name: example-new, tries: 1, expiry: 8s, poolcnt: 1}
@@ -26,7 +25,7 @@ func ExampleMutex_Lock() {
 	rstest.AddLockExpects(conn, "example-mutex-lock", "OK")
 
 	pools := rstest.PoolsForConn(conn, 1)
-	mutex := redsync.New(pools).NewMutex("example-mutex-lock", redsync.NonBlocking())
+	mutex := redsync.New(pools...).NewMutex("example-mutex-lock", redsync.NonBlocking())
 	err := mutex.Lock()
 	if err == redsync.ErrFailed {
 		fmt.Println("Failed to acquire lock.")
@@ -46,7 +45,7 @@ func ExampleMutex_WithLock() {
 	rstest.AddLockExpects(conn, "example-mutex-with-lock", nil, "OK", "err")
 
 	pools := rstest.PoolsForConn(conn, 1)
-	rs := redsync.New(pools)
+	rs := redsync.New(pools...)
 
 	result := "no calls"
 
@@ -79,8 +78,7 @@ func ExampleMutex_WithLock() {
 func Example() {
 	host := "localhost:6379"
 	pool := &redis.Pool{Dial: redsync.TcpDialer(host)}
-	pools := []*redis.Pool{pool}
-	mutex := redsync.New(pools).NewMutex("redsync-example", redsync.NonBlocking())
+	mutex := redsync.New(pool).NewMutex("redsync-example", redsync.NonBlocking())
 
 	// Use Mutex#Lock and Mutex#Unlock manually
 	if mutex.Lock() != nil {

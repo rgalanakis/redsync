@@ -60,7 +60,7 @@ var _ = Describe("redsync", func() {
 	}
 
 	newTestMutexes := func(pools []*redis.Pool, name string, n int) (mutexes []*redsync.Mutex) {
-		rs := redsync.New(pools)
+		rs := redsync.New(pools...)
 		for i := 0; i < n; i++ {
 			mutexes = append(mutexes, rs.NewMutex(name, redsync.Blocking()))
 		}
@@ -85,7 +85,7 @@ var _ = Describe("redsync", func() {
 
 		It("can create a Mutex", func() {
 			pools := tr.Pools(8)
-			rs := redsync.New(pools)
+			rs := redsync.New(pools...)
 
 			mutex := rs.NewMutex("test-redsync", redsync.Blocking())
 			Expect(mutex.Lock()).To(Succeed())
@@ -116,7 +116,7 @@ var _ = Describe("redsync", func() {
 			for mask := 0; mask < 1<<uint(len(pools)); mask++ {
 				opts := redsync.Blocking()
 				opts.Tries = 1
-				mutex := redsync.New(pools).NewMutex("test-mutex-partial-"+strconv.Itoa(mask), opts)
+				mutex := redsync.New(pools...).NewMutex("test-mutex-partial-"+strconv.Itoa(mask), opts)
 
 				n := clogPools(pools, mask, mutex)
 
@@ -131,7 +131,7 @@ var _ = Describe("redsync", func() {
 
 		It("errors if all servers reply with an unexpected error", func() {
 			pools := rstest.PoolsForConn(redigomock.NewConn(), 4)
-			mutex := redsync.New(pools).NewMutex("test-errors", redsync.NonBlocking())
+			mutex := redsync.New(pools...).NewMutex("test-errors", redsync.NonBlocking())
 			Expect(mutex.Lock()).To(Not(Succeed()))
 			Expect(mutex.Lock().Error()).To(ContainSubstring("not registered in redigomock library"))
 		})
@@ -142,10 +142,10 @@ var _ = Describe("redsync", func() {
 			rstest.AddLockExpects(conn, name, "OK", nil)
 
 			pools := rstest.PoolsForConn(conn, 1)
-			mutex1 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
+			mutex1 := redsync.New(pools...).NewMutex(name, redsync.NonBlocking())
 			Expect(mutex1.Lock()).To(Succeed())
 
-			mutex2 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
+			mutex2 := redsync.New(pools...).NewMutex(name, redsync.NonBlocking())
 			Expect(mutex2.Lock()).To(Equal(redsync.ErrFailed))
 		})
 
@@ -155,10 +155,11 @@ var _ = Describe("redsync", func() {
 			rstest.AddLockExpects(conn, name, nil, "OK", nil).ExpectError(errors.New("failed"))
 			pools := rstest.PoolsForConn(conn, 1)
 
-			mutex1 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
-			mutex2 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
-			mutex3 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
-			mutex4 := redsync.New(pools).NewMutex(name, redsync.NonBlocking())
+			rs := redsync.New(pools...)
+			mutex1 := rs.NewMutex(name, redsync.NonBlocking())
+			mutex2 := rs.NewMutex(name, redsync.NonBlocking())
+			mutex3 := rs.NewMutex(name, redsync.NonBlocking())
+			mutex4 := rs.NewMutex(name, redsync.NonBlocking())
 			var res1, res2, res3, res4 bool
 
 			locked1, err1 := mutex1.WithLock(func() {

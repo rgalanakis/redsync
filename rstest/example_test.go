@@ -14,7 +14,7 @@ func ExampleAddLockExpects() {
 		ExpectError(errors.New("uh-oh"))
 
 	pools := rstest.PoolsForConn(conn, 1)
-	mutex := redsync.New(pools).NewMutex("example-lock-expects", redsync.NonBlocking())
+	mutex := redsync.New(pools...).NewMutex("example-lock-expects", redsync.NonBlocking())
 
 	fmt.Println(mutex.Lock())
 	fmt.Println(mutex.Lock())
