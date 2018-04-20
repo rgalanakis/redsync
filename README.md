@@ -25,7 +25,19 @@ It also [Redigomock](https://github.com/rafaeljusto/redigomock) for testing.
 
 Taking a distributed lock:
 ```go
-redsync.
+host := "localhost:6379"
+pool := &redis.Pool{Dial: redsync.TcpDialer(host)}
+pools := []*redis.Pool{pool}
+mutex := redsync.New(pools).NewMutex("redsync-example", redsync.NonBlocking())
+
+// Use Mutex#Lock and Mutex#Unlock manually
+if mutex.Lock() != nil {
+    defer mutex.Unlock()
+    expensiveOperation()
+}
+
+// Or use Mutex#WithLock to execute something conditionally.
+mutex.WithLock(expensiveOperation)
 ```
 
 ## Documentation
