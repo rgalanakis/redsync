@@ -7,11 +7,12 @@ import (
 )
 
 // AddLockExpects is a helper for adding redigomock.Conn expectations for locking.
-// name is the name of the mutex, and expects are each arguments passed to redigomock.Cmd#Expect.
+// name is the string name of the mutex or a redigomock.FuzzyMatcher,
+// and expects are each arguments passed to redigomock.Cmd#Expect.
 // For example, if you wanted to acquire the "my-mutex" four times,
 // and succeed the first two times, then fail due to contention,
 // you could use AddLockExpects(mockConn, "my-mutex", "OK", "OK", nil).
-func AddLockExpects(conn *redigomock.Conn, name string, expects ...interface{}) *redigomock.Cmd {
+func AddLockExpects(conn *redigomock.Conn, name interface{}, expects ...interface{}) *redigomock.Cmd {
 	cmd := conn.Command("SET", name, redigomock.NewAnyData(), "NX", "PX", redigomock.NewAnyInt())
 	for _, e := range expects {
 		cmd = cmd.Expect(e)
