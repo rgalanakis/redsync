@@ -4,6 +4,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/rafaeljusto/redigomock"
 	"github.com/rgalanakis/redsync"
+	"sync"
 )
 
 // AddLockExpects is a helper for adding redigomock.Conn expectations for locking.
@@ -36,4 +37,47 @@ func PoolsForConn(conn redis.Conn, n int) (pools []*redis.Pool) {
 		pools = append(pools, &redis.Pool{Dial: ConnDialer(conn)})
 	}
 	return pools
+}
+
+// ThreadsafeConn can be used to wrap a redis.Conn that is not threadsafe.
+// This is usually a redigomock.Conn.
+type ThreadsafeConn struct {
+	Conn redis.Conn
+	lock sync.Mutex
+}
+
+func (t ThreadsafeConn) Close() error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	return t.Conn.Close()
+}
+
+func (t ThreadsafeConn) Err() error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	return t.Conn.Err()
+}
+
+func (t ThreadsafeConn) Do(commandName string, args ...interface{}) (reply interface{}, err error) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	return t.Conn.Do(commandName, args...)
+}
+
+func (t ThreadsafeConn) Send(commandName string, args ...interface{}) error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	return t.Conn.Send(commandName, args...)
+}
+
+func (t ThreadsafeConn) Flush() error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	return t.Conn.Flush()
+}
+
+func (t ThreadsafeConn) Receive() (reply interface{}, err error) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	return t.Conn.Receive()
 }

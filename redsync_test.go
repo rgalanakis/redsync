@@ -11,11 +11,12 @@ import (
 	"github.com/rgalanakis/redsync/rstest"
 	"github.com/stvp/tempredis"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
 
-func TestLocker(t *testing.T) {
+func TestRedsync(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Redsync Suite")
 }
@@ -199,6 +200,25 @@ var _ = Describe("redsync", func() {
 			_, err := redsync.TcpDialer("127.0.0.1:6379")()
 			Expect(err).To(MatchError(ContainSubstring("connection refused")))
 		})
+	})
+
+	It("rstest.ThreadsafeConn is threadsafe", func() {
+		var wg sync.WaitGroup
+		conn := rstest.ThreadsafeConn{Conn: redigomock.NewConn()}
+		name := "test-racelock"
+		pools := rstest.PoolsForConn(conn, 1)
+
+		rs := redsync.New(pools...)
+		opts := redsync.NonBlocking()
+		for i := 0; i < 1; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				rmux := rs.NewMutex(name, opts)
+				rmux.WithLock(func() {})
+			}()
+		}
+		wg.Wait()
 	})
 
 })
