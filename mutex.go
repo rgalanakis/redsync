@@ -7,7 +7,6 @@ import (
 
 	"fmt"
 	"github.com/gomodule/redigo/redis"
-	"sync"
 )
 
 // Mutex is a distributed mutual exclusion lock.
@@ -24,8 +23,6 @@ type Mutex struct {
 	factor float64
 
 	quorum int
-
-	memMutex *sync.Mutex
 
 	value string
 	until time.Time
@@ -135,10 +132,6 @@ func (m *Mutex) acquireAll(value string) (int, error) {
 }
 
 func (m *Mutex) acquire(pool *redis.Pool, value string) (bool, error) {
-	if m.memMutex != nil {
-		m.memMutex.Lock()
-		defer m.memMutex.Unlock()
-	}
 	conn := pool.Get()
 	defer conn.Close()
 	reply, err := redis.String(conn.Do("SET", m.name, value, "NX", "PX", int(m.expiry/time.Millisecond)))
@@ -171,10 +164,6 @@ var deleteScript = redis.NewScript(1, `
 `)
 
 func (m *Mutex) release(pool *redis.Pool, value string) bool {
-	if m.memMutex != nil {
-		m.memMutex.Lock()
-		defer m.memMutex.Unlock()
-	}
 	conn := pool.Get()
 	defer conn.Close()
 	status, err := deleteScript.Do(conn, m.name, value)

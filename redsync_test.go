@@ -11,7 +11,6 @@ import (
 	"github.com/rgalanakis/redsync/rstest"
 	"github.com/stvp/tempredis"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 )
@@ -193,26 +192,6 @@ var _ = Describe("redsync", func() {
 			Expect(locked4).To(BeFalse())
 			Expect(res4).To(BeFalse())
 		})
-
-		It("supports a lock to avoid race conditions in the connection library", func() {
-			var wg sync.WaitGroup
-			conn := redigomock.NewConn()
-			name := "test-racelock"
-			pools := rstest.PoolsForConn(conn, 1)
-
-			rs := redsync.New(pools...)
-			opts := redsync.NonBlocking()
-			opts.MemMutex = &sync.Mutex{}
-			for i := 0; i < 100; i++ {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					rmux := rs.NewMutex(name, opts)
-					rmux.WithLock(func() {})
-				}()
-			}
-			wg.Wait()
-		})
 	})
 
 	Describe("TCPDialier", func() {
@@ -271,23 +250,23 @@ func (ts TempServers) Stop() {
 // then use Start() to fill it with servers. Stop() stops the servers.
 // Pool(n) returns a slice of redis.Pool instances, one for each server,
 // up to n.
-//func ExampleServers() {
-//	tr := make(TempServers, 2)
-//	fmt.Println("Created", len(tr), "temp redis servers")
-//	fmt.Println("TempServers are nil?", tr[0] == nil)
-//	tr.Start()
-//	fmt.Println("Started servers")
-//	fmt.Println("TempServers are nil?", tr[0] == nil)
-//
-//	pools := tr.Pools(2)
-//	fmt.Println("Created a slice of", len(pools), "[]*redis.Pool, each to a different server")
-//	tr.Stop()
-//	fmt.Println("TempServers terminated")
-//	// Output:
-//	// Created 2 temp redis servers
-//	// TempServers are nil? true
-//	// Started servers
-//	// TempServers are nil? false
-//	// Created a slice of 2 []*redis.Pool, each to a different server
-//	// TempServers terminated
-//}
+func ExampleServers() {
+	tr := make(TempServers, 2)
+	fmt.Println("Created", len(tr), "temp redis servers")
+	fmt.Println("TempServers are nil?", tr[0] == nil)
+	tr.Start()
+	fmt.Println("Started servers")
+	fmt.Println("TempServers are nil?", tr[0] == nil)
+
+	pools := tr.Pools(2)
+	fmt.Println("Created a slice of", len(pools), "[]*redis.Pool, each to a different server")
+	tr.Stop()
+	fmt.Println("TempServers terminated")
+	// Output:
+	// Created 2 temp redis servers
+	// TempServers are nil? true
+	// Started servers
+	// TempServers are nil? false
+	// Created a slice of 2 []*redis.Pool, each to a different server
+	// TempServers terminated
+}

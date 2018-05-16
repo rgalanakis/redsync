@@ -3,7 +3,6 @@ package redsync
 import (
 	"fmt"
 	"github.com/gomodule/redigo/redis"
-	"sync"
 	"time"
 )
 
@@ -54,9 +53,6 @@ type MutexOpts struct {
 	Delay time.Duration
 	// Factor is the clock drift Factor.
 	Factor float64
-	// MemMutex can be used to synchronize between multiple Redsync mutexes.
-	// It's only really useful if the underlying redis.Conn implementation is not threadsafe (like redigomock).
-	MemMutex *sync.Mutex
 }
 
 // Blocking returns the default MutexOpts for a blocking mutex.
@@ -86,14 +82,13 @@ func NonBlocking() MutexOpts {
 // NewMutex returns a new distributed mutex with given name and options.
 func (r *Redsync) NewMutex(name string, opts MutexOpts) *Mutex {
 	return &Mutex{
-		name:     name,
-		expiry:   opts.Expiry,
-		tries:    opts.Tries,
-		delay:    opts.Delay,
-		factor:   opts.Factor,
-		memMutex: opts.MemMutex,
-		quorum:   Quorum(len(r.pools)),
-		pools:    r.pools,
+		name:   name,
+		expiry: opts.Expiry,
+		tries:  opts.Tries,
+		delay:  opts.Delay,
+		factor: opts.Factor,
+		quorum: Quorum(len(r.pools)),
+		pools:  r.pools,
 	}
 }
 
