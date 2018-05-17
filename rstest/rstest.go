@@ -46,37 +46,37 @@ type ThreadsafeConn struct {
 	lock sync.Mutex
 }
 
-func (t ThreadsafeConn) Close() error {
+func (t *ThreadsafeConn) Close() error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	return t.Conn.Close()
 }
 
-func (t ThreadsafeConn) Err() error {
+func (t *ThreadsafeConn) Err() error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	return t.Conn.Err()
 }
 
-func (t ThreadsafeConn) Do(commandName string, args ...interface{}) (reply interface{}, err error) {
+func (t *ThreadsafeConn) Do(commandName string, args ...interface{}) (reply interface{}, err error) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	return t.Conn.Do(commandName, args...)
 }
 
-func (t ThreadsafeConn) Send(commandName string, args ...interface{}) error {
+func (t *ThreadsafeConn) Send(commandName string, args ...interface{}) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	return t.Conn.Send(commandName, args...)
 }
 
-func (t ThreadsafeConn) Flush() error {
+func (t *ThreadsafeConn) Flush() error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	return t.Conn.Flush()
 }
 
-func (t ThreadsafeConn) Receive() (reply interface{}, err error) {
+func (t *ThreadsafeConn) Receive() (reply interface{}, err error) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	return t.Conn.Receive()
