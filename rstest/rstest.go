@@ -43,7 +43,15 @@ func PoolsForConn(conn redis.Conn, n int) (pools []*redis.Pool) {
 // This is usually a redigomock.Conn.
 type ThreadsafeConn struct {
 	Conn redis.Conn
-	lock sync.Mutex
+	lock *sync.Mutex
+}
+
+// NewThreadsafeConn initializes the mutex.
+func NewThreadsafeConn(conn redis.Conn) ThreadsafeConn {
+	return ThreadsafeConn{
+		Conn: conn,
+		lock: &sync.Mutex{},
+	}
 }
 
 func (t ThreadsafeConn) Close() error {
