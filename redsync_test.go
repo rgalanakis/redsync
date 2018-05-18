@@ -3,6 +3,11 @@ package redsync_test
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/gomodule/redigo/redis"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -10,10 +15,6 @@ import (
 	"github.com/rgalanakis/redsync"
 	"github.com/rgalanakis/redsync/rstest"
 	"github.com/stvp/tempredis"
-	"strconv"
-	"sync"
-	"testing"
-	"time"
 )
 
 func TestRedsync(t *testing.T) {
@@ -204,7 +205,7 @@ var _ = Describe("redsync", func() {
 
 	It("rstest.ThreadsafeConn is threadsafe", func() {
 		var wg sync.WaitGroup
-		conn := rstest.ThreadsafeConn{Conn: redigomock.NewConn()}
+		conn := rstest.NewThreadsafeConn(redigomock.NewConn())
 		name := "test-racelock"
 		pools := rstest.PoolsForConn(conn, 1)
 

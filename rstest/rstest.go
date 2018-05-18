@@ -1,10 +1,11 @@
 package rstest
 
 import (
+	"sync"
+
 	"github.com/gomodule/redigo/redis"
 	"github.com/rafaeljusto/redigomock"
 	"github.com/rgalanakis/redsync"
-	"sync"
 )
 
 // AddLockExpects is a helper for adding redigomock.Conn expectations for locking.
@@ -43,7 +44,15 @@ func PoolsForConn(conn redis.Conn, n int) (pools []*redis.Pool) {
 // This is usually a redigomock.Conn.
 type ThreadsafeConn struct {
 	Conn redis.Conn
-	lock sync.Mutex
+	lock *sync.Mutex
+}
+
+// NewThreadsafeConn initializes the mutex.
+func NewThreadsafeConn(conn redis.Conn) redis.Conn {
+	return ThreadsafeConn{
+		Conn: conn,
+		lock: &sync.Mutex{},
+	}
 }
 
 func (t ThreadsafeConn) Close() error {
